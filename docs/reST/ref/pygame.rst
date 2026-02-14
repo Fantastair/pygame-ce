@@ -30,6 +30,14 @@ object instead of the module, which can be used to test for availability.
 
    .. ## pygame.IS_CE ##
 
+.. data:: IS_FANTAS
+
+   | :sl:`exists if current pygame-ce is built for fantas`
+   | :sg:`IS_FANTAS = 1`
+
+   Use ``getattr(pygame, "IS_FANTAS", False)`` to check if current pygame-ce
+   is built for fantas
+
 .. function:: init
 
    | :sl:`initialize all imported pygame modules`

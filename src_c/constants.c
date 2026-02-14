@@ -655,6 +655,7 @@ MODINIT_DEFINE(constants)
 
     // https://github.com/pygame-community/pygame-ce/issues/1845
     DEC_CONSTS(IS_CE, 1);
+    DEC_CONSTS(IS_FANTAS, 1);
 
     ADD_NAMED_STRING_CONST(NULL_VIDEODRIVER, "dummy");
 

@@ -1,6 +1,7 @@
 /* Auto generated file: with make_docs.py .  Docs go in docs/reST/ref/ . */
 #define DOC_ "the top level pygame package"
 #define DOC_ISCE "IS_CE = 1\nexists if current pygame is pygame-ce"
+#define DOC_ISFANTAS "IS_FANTAS = 1\nexists if current pygame-ce is built for fantas"
 #define DOC_INIT "init() -> (numpass, numfail)\ninitialize all imported pygame modules"
 #define DOC_QUIT "quit() -> None\nuninitialize all pygame modules"
 #define DOC_GETINIT "get_init() -> bool\nreturns True if pygame is currently initialized"
