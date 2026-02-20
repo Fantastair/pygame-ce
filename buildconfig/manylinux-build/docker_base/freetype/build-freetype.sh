@@ -9,11 +9,6 @@ HARFBUZZ_NAME="harfbuzz-$HARFBUZZ_VER"
 
 curl -sL --retry 10 https://savannah.nongnu.org/download/freetype/${FREETYPE}.tar.gz > ${FREETYPE}.tar.gz
 curl -sL --retry 10 https://github.com/harfbuzz/harfbuzz/releases/download/${HARFBUZZ_VER}/${HARFBUZZ_NAME}.tar.xz > ${HARFBUZZ_NAME}.tar.xz
-echo "=== Actual SHA512 of downloaded file ==="
-sha512sum ${FREETYPE}.tar.gz
-sha512sum ${HARFBUZZ_NAME}.tar.xz
-echo "=== Expected SHA512 from freetype.sha512 ==="
-cat freetype.sha512
 sha512sum -c freetype.sha512
 
 # extract installed sources
