@@ -7,9 +7,18 @@ FREETYPE="freetype-2.14.1"
 HARFBUZZ_VER=12.1.0
 HARFBUZZ_NAME="harfbuzz-$HARFBUZZ_VER"
 
-curl -sL --retry 10 https://savannah.nongnu.org/download/freetype/${FREETYPE}.tar.gz > ${FREETYPE}.tar.gz
-curl -sL --retry 10 https://github.com/harfbuzz/harfbuzz/releases/download/${HARFBUZZ_VER}/${HARFBUZZ_NAME}.tar.xz > ${HARFBUZZ_NAME}.tar.xz
-# sha512sum -c freetype.sha512
+# 使用 SourceForge 镜像替代 Savannah
+curl -fsSL --retry 10 --retry-delay 5 \
+  "https://downloads.sourceforge.net/project/freetype/freetype2/${FREETYPE#freetype-}/${FREETYPE}.tar.gz" \
+  -o "${FREETYPE}.tar.gz"
+
+curl -fsSL --retry 10 --retry-delay 5 \
+  "https://github.com/harfbuzz/harfbuzz/releases/download/${HARFBUZZ_VER}/${HARFBUZZ_NAME}.tar.xz" \
+  -o "${HARFBUZZ_NAME}.tar.xz"
+
+# 验证文件完整性
+file "${FREETYPE}.tar.gz"
+file "${HARFBUZZ_NAME}.tar.xz"
 
 # extract installed sources
 tar xzf ${FREETYPE}.tar.gz
