@@ -35,6 +35,12 @@ jobs:
     steps:
     - uses: actions/checkout@v6.0.2
 
+    - name: Set lowercase repository name
+      id: repo
+      run: |
+        REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+        echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
+
     - name: Log in to the Container registry
       uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
       with:
@@ -45,13 +51,13 @@ jobs:
     - name: Inspect image, skip build if image exists
       id: inspect
       continue-on-error: true
-      run: docker manifest inspect ghcr.io/${{ github.repository }}_${{ matrix.arch }}:${{ hashFiles('buildconfig/manylinux-build/**') }}
+      run: docker manifest inspect ghcr.io/${{ steps.repo.outputs.repo_lower }}_${{ matrix.arch }}:${{ hashFiles('buildconfig/manylinux-build/**') }}
 
     - name: Extract metadata (tags, labels) for Docker
       id: meta
       uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
       with:
-        images: ghcr.io/${{ github.repository }}_${{ matrix.arch }}
+        images: ghcr.io/${{ steps.repo.outputs.repo_lower }}_${{ matrix.arch }}
         tags: type=raw,value=${{ hashFiles('buildconfig/manylinux-build/**') }}
 
     - name: Build and push Docker image
@@ -67,12 +73,12 @@ jobs:
     - name: Build and test wheels
       env:
         # set custom pygame images
-        CIBW_MANYLINUX_X86_64_IMAGE: ghcr.io/${{ github.repository }}_x86_64:${{ steps.meta.outputs.version }}
-        CIBW_MANYLINUX_PYPY_X86_64_IMAGE: ghcr.io/${{ github.repository }}_x86_64:${{ steps.meta.outputs.version }}
-        CIBW_MANYLINUX_I686_IMAGE: ghcr.io/${{ github.repository }}_i686:${{ steps.meta.outputs.version }}
-        CIBW_MANYLINUX_PYPY_I686_IMAGE: ghcr.io/${{ github.repository }}_i686:${{ steps.meta.outputs.version }}
-        CIBW_MANYLINUX_AARCH64_IMAGE: ghcr.io/${{ github.repository }}_aarch64:${{ steps.meta.outputs.version }}
-        CIBW_MANYLINUX_PYPY_AARCH64_IMAGE: ghcr.io/${{ github.repository }}_aarch64:${{ steps.meta.outputs.version }}
+        CIBW_MANYLINUX_X86_64_IMAGE: ghcr.io/${{ steps.repo.outputs.repo_lower }}_x86_64:${{ steps.meta.outputs.version }}
+        CIBW_MANYLINUX_PYPY_X86_64_IMAGE: ghcr.io/${{ steps.repo.outputs.repo_lower }}_x86_64:${{ steps.meta.outputs.version }}
+        CIBW_MANYLINUX_I686_IMAGE: ghcr.io/${{ steps.repo.outputs.repo_lower }}_i686:${{ steps.meta.outputs.version }}
+        CIBW_MANYLINUX_PYPY_I686_IMAGE: ghcr.io/${{ steps.repo.outputs.repo_lower }}_i686:${{ steps.meta.outputs.version }}
+        CIBW_MANYLINUX_AARCH64_IMAGE: ghcr.io/${{ steps.repo.outputs.repo_lower }}_aarch64:${{ steps.meta.outputs.version }}
+        CIBW_MANYLINUX_PYPY_AARCH64_IMAGE: ghcr.io/${{ steps.repo.outputs.repo_lower }}_aarch64:${{ steps.meta.outputs.version }}
 
       uses: pypa/cibuildwheel@v3.2.1
 
