@@ -3,7 +3,7 @@ name = "pygame-ce"
 version = "2.5.7.dev1"
 description = "Python Game Development"
 readme = "README.rst" # for long description
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 license = {text = "LGPL v2.1"}
 authors = [{name = "A community project"}]
 classifiers = [
