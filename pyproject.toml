@@ -75,7 +75,7 @@ install = ['--tags=runtime,python-runtime,pg-tag']
 # dependencies. Here is where uv comes into the picture. It is an "installer" like pip,
 # but faster. It has been observed to save a couple of minutes of CI time.
 build-frontend = "build[uv]"
-build = "cp3{12,13,14}"
+build = "cp3{12,13,14}-*"
 skip = ["*-musllinux_*", "cp31?t-*"]
 # build[uv] is verbose by default, so below flag is not needed here
 # build-verbosity = 3
