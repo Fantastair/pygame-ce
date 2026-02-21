@@ -1,6 +1,6 @@
 [project]
 name = "pygame-ce"
-version = "2.5.7.dev2"
+version = "2.5.7.dev1"
 description = "Python Game Development"
 readme = "README.rst" # for long description
 requires-python = ">=3.12"
@@ -20,7 +20,6 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
     "Topic :: Games/Entertainment",
     "Topic :: Multimedia :: Sound/Audio",
     "Topic :: Multimedia :: Sound/Audio :: MIDI",
@@ -40,10 +39,10 @@ classifiers = [
 
 [project.urls]
 homepage = "https://pyga.me"
-"Bug Reports" = "https://github.com/pygame-community/pygame-ce/issues"
+"Bug Reports" = "https://github.com/Fantastair/pygame-ce/issues"
 "Documentation" = "https://pyga.me/docs"
-"Release Notes" = "https://github.com/pygame-community/pygame-ce/releases"
-"Source" = "https://github.com/pygame-community/pygame-ce"
+"Release Notes" = "https://github.com/Fantastair/pygame-ce/releases"
+"Source" = "https://github.com/Fantastair/pygame-ce"
 
 [project.entry-points.pyinstaller40]
 hook-dirs = 'pygame.__pyinstaller:get_hook_dirs'
@@ -76,15 +75,10 @@ install = ['--tags=runtime,python-runtime,pg-tag']
 # dependencies. Here is where uv comes into the picture. It is an "installer" like pip,
 # but faster. It has been observed to save a couple of minutes of CI time.
 build-frontend = "build[uv]"
-build = "cp3{10,11,12,13,14}-* pp311-*"
+build = "cp3{12,13,14}"
 skip = ["*-musllinux_*", "cp31?t-*"]
 # build[uv] is verbose by default, so below flag is not needed here
 # build-verbosity = 3
-
-# In CIBW 2, defaults to pypy-enabled, but is throwing warnings about the
-# default changing in CIBW 3. So since we use pypy, lets explicitly enable it.
-# https://cibuildwheel.pypa.io/en/stable/options/#enable
-enable = ["pypy"]
 
 environment = { SDL_VIDEODRIVER="dummy", SDL_AUDIODRIVER="disk" }
 test-command = "python -m pygame.tests -v --exclude opengl,music,timing --time_out 300"
