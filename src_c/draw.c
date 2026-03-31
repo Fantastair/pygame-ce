@@ -2281,6 +2281,94 @@ draw_line_round_endpoint(SDL_Surface *surf, SDL_Rect surf_clip_rect,
                          Uint32 color, int x1, int y1, int x2, int y2,
                          int width, int *drawn_area)
 {
+    int sx, sy, original_width = width, extra_width;
+
+    if (width < 1) {
+        return;
+    }
+    if (width == 1) {
+        draw_line(surf, surf_clip_rect, x1, y1, x2, y2, color, drawn_area);
+        return;
+    }
+
+    extra_width = width % 2;
+    width = width / 2;
+
+    if (x1 == x2 && y1 == y2) {
+        draw_circle_filled(surf, surf_clip_rect, x1, y1, width, color,
+                           drawn_area);
+        return;
+    }
+    if (y1 == y2) {
+        for (sy = y1 - width; sy <= y1 + width + extra_width; sy++) {
+            draw_line(surf, surf_clip_rect, x1, sy, x2, sy, color, drawn_area);
+        }
+        if (x1 > x2) {
+            draw_circle_quadrant(surf, surf_clip_rect, x1, y1, width, width,
+                                 color, 1, 0, 0, 1, drawn_area);
+            draw_circle_quadrant(surf, surf_clip_rect, x2, y2, width, width,
+                                 color, 0, 1, 1, 0, drawn_area);
+        }
+        else {
+            draw_circle_quadrant(surf, surf_clip_rect, x1, y1, width, width,
+                                 color, 0, 1, 1, 0, drawn_area);
+            draw_circle_quadrant(surf, surf_clip_rect, x2, y2, width, width,
+                                 color, 1, 0, 0, 1, drawn_area);
+        }
+        return;
+    }
+    if (x1 == x2) {
+        for (sx = x1 - width; sx <= x1 + width + extra_width; sx++) {
+            draw_line(surf, surf_clip_rect, sx, y1, sx, y2, color, drawn_area);
+        }
+        if (y1 > y2) {
+            draw_circle_quadrant(surf, surf_clip_rect, x1, y1, width, width,
+                                 color, 0, 0, 1, 1, drawn_area);
+            draw_circle_quadrant(surf, surf_clip_rect, x2, y2, width, width,
+                                 color, 1, 1, 0, 0, drawn_area);
+        }
+        else {
+            draw_circle_quadrant(surf, surf_clip_rect, x1, y1, width, width,
+                                 color, 1, 1, 0, 0, drawn_area);
+            draw_circle_quadrant(surf, surf_clip_rect, x2, y2, width, width,
+                                 color, 0, 0, 1, 1, drawn_area);
+        }
+        return;
+    }
+
+    draw_line_rect_endpoint(surf, surf_clip_rect, color, x1, y1, x2, y2,
+                            original_width, drawn_area);
+    switch ((x1 > x2) << 1 | (y1 > y2)) {
+        case 0:
+            draw_circle_quadrant(surf, surf_clip_rect, x1, y1, width, width,
+                                 color, 1, 1, 1, 0, drawn_area);
+            draw_circle_quadrant(surf, surf_clip_rect, x2, y2, width, width,
+                                 color, 1, 0, 1, 1, drawn_area);
+            break;
+
+        case 1:
+            draw_circle_quadrant(surf, surf_clip_rect, x1, y1, width, width,
+                                 color, 0, 1, 1, 1, drawn_area);
+            draw_circle_quadrant(surf, surf_clip_rect, x2, y2, width, width,
+                                 color, 1, 1, 0, 1, drawn_area);
+            break;
+
+        case 2:
+            draw_circle_quadrant(surf, surf_clip_rect, x1, y1, width, width,
+                                 color, 1, 1, 0, 1, drawn_area);
+            draw_circle_quadrant(surf, surf_clip_rect, x2, y2, width, width,
+                                 color, 0, 1, 1, 1, drawn_area);
+            break;
+
+        case 3:
+            draw_circle_quadrant(surf, surf_clip_rect, x1, y1, width, width,
+                                 color, 1, 0, 1, 1, drawn_area);
+            draw_circle_quadrant(surf, surf_clip_rect, x2, y2, width, width,
+                                 color, 1, 1, 1, 0, drawn_area);
+            break;
+        default:
+            break;
+    }
 }
 
 static void
