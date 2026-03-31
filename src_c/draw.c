@@ -559,14 +559,16 @@ lines(PyObject *self, PyObject *arg, PyObject *kwargs)
     int *xlist = NULL, *ylist = NULL;
     int width = 1; /* Default width. */
     Py_ssize_t loop, length;
+    int endpoint_style =
+        PYGAME_ENDPOINT_STYLE_DEFAULT; /* Default endpoint style. */
     int drawn_area[4] = {INT_MAX, INT_MAX, INT_MIN,
                          INT_MIN}; /* Used to store bounding box values */
-    static char *keywords[] = {"surface", "color", "closed",
-                               "points",  "width", NULL};
+    static char *keywords[] = {"surface", "color",          "closed", "points",
+                               "width",   "endpoint_style", NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(arg, kwargs, "O!OpO|i", keywords,
-                                     &pgSurface_Type, &surfobj, &colorobj,
-                                     &closed, &points, &width)) {
+    if (!PyArg_ParseTupleAndKeywords(
+            arg, kwargs, "O!OpO|ii", keywords, &pgSurface_Type, &surfobj,
+            &colorobj, &closed, &points, &width, &endpoint_style)) {
         return NULL; /* Exception already set. */
     }
 
@@ -643,15 +645,43 @@ lines(PyObject *self, PyObject *arg, PyObject *kwargs)
     }
 
     for (loop = 1; loop < length; ++loop) {
-        draw_line_width(surf, surf_clip_rect, color, xlist[loop - 1],
-                        ylist[loop - 1], xlist[loop], ylist[loop], width,
-                        drawn_area);
+        if (endpoint_style == PYGAME_ENDPOINT_STYLE_RECT) {
+            draw_line_rect_endpoint(
+                surf, surf_clip_rect, color, xlist[loop - 1], ylist[loop - 1],
+                xlist[loop], ylist[loop], width, drawn_area);
+        }
+        else if (endpoint_style == PYGAME_ENDPOINT_STYLE_ROUND) {
+            draw_line_rect_endpoint(
+                surf, surf_clip_rect, color, xlist[loop - 1], ylist[loop - 1],
+                xlist[loop], ylist[loop], width, drawn_area);
+            draw_circle_filled(surf, surf_clip_rect, xlist[loop - 1],
+                               ylist[loop - 1], width / 2, color, drawn_area);
+        }
+        else {
+            draw_line_width(surf, surf_clip_rect, color, xlist[loop - 1],
+                            ylist[loop - 1], xlist[loop], ylist[loop], width,
+                            drawn_area);
+        }
     }
 
     if (closed && length > 2) {
-        draw_line_width(surf, surf_clip_rect, color, xlist[length - 1],
-                        ylist[length - 1], xlist[0], ylist[0], width,
-                        drawn_area);
+        if (endpoint_style == PYGAME_ENDPOINT_STYLE_RECT ||
+            endpoint_style == PYGAME_ENDPOINT_STYLE_ROUND) {
+            draw_line_rect_endpoint(surf, surf_clip_rect, color,
+                                    xlist[length - 1], ylist[length - 1],
+                                    xlist[0], ylist[0], width, drawn_area);
+        }
+        else {
+            draw_line_width(surf, surf_clip_rect, color, xlist[length - 1],
+                            ylist[length - 1], xlist[0], ylist[0], width,
+                            drawn_area);
+        }
+    }
+
+    if (endpoint_style == PYGAME_ENDPOINT_STYLE_ROUND) {
+        /* draw a circle at the end of the last line to round it off. */
+        draw_circle_filled(surf, surf_clip_rect, xlist[length - 1],
+                           ylist[length - 1], width / 2, color, drawn_area);
     }
 
     PyMem_Free(xlist);

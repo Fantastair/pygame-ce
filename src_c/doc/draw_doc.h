@@ -7,7 +7,7 @@
 #define DOC_DRAW_ELLIPSE "ellipse(surface, color, rect, width=0) -> Rect\nDraw an ellipse."
 #define DOC_DRAW_ARC "arc(surface, color, rect, start_angle, stop_angle, width=1) -> Rect\nDraw an elliptical arc."
 #define DOC_DRAW_LINE "line(surface, color, start_pos, end_pos, width=1, endpoint_style=0) -> Rect\nDraw a straight line."
-#define DOC_DRAW_LINES "lines(surface, color, closed, points, width=1) -> Rect\nDraw multiple contiguous straight line segments."
+#define DOC_DRAW_LINES "lines(surface, color, closed, points, width=1, endpoint_style=0) -> Rect\nDraw multiple contiguous straight line segments."
 #define DOC_DRAW_AALINE "aaline(surface, color, start_pos, end_pos, width=1) -> Rect\nDraw a straight antialiased line."
 #define DOC_DRAW_AALINES "aalines(surface, color, closed, points) -> Rect\nDraw multiple contiguous straight antialiased line segments."
 #define DOC_DRAW_FLOODFILL "flood_fill(surface, color, start_pos) -> Rect\nFill an enclosed, same color area, on a surface."

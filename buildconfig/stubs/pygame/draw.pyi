@@ -430,6 +430,7 @@ def lines(
     closed: bool,
     points: SequenceLike[Point],
     width: int = 1,
+    endpoint_style: int = 0,
 ) -> Rect:
     """Draw multiple contiguous straight line segments.
 
