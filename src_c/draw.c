@@ -38,6 +38,11 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+#define PYGAME_ENDPOINT_STYLE_DEFAULT 0x0
+#define PYGAME_ENDPOINT_STYLE_RECT 0x1
+#define PYGAME_ENDPOINT_STYLE_ROUND 0x2
+#define PYGAME_ENDPOINT_STYLE_MITER 0x3
+
 /* Declaration of drawing algorithms */
 static void
 draw_line_width(SDL_Surface *surf, SDL_Rect surf_clip_rect, Uint32 color,
@@ -56,6 +61,14 @@ draw_aaline_width(SDL_Surface *surf, SDL_Rect surf_clip_rect,
                   PG_PixelFormat *surf_format, Uint32 color, float from_x,
                   float from_y, float to_x, float to_y, int width,
                   int *drawn_area);
+static void
+draw_line_rect_endpoint(SDL_Surface *surf, SDL_Rect surf_clip_rect,
+                        Uint32 color, int x1, int y1, int x2, int y2,
+                        int width, int *drawn_area);
+static void
+draw_line_round_endpoint(SDL_Surface *surf, SDL_Rect surf_clip_rect,
+                         Uint32 color, int x1, int y1, int x2, int y2,
+                         int width, int *drawn_area);
 static void
 draw_arc(SDL_Surface *surf, SDL_Rect surf_clip_rect, int x_center,
          int y_center, int radius1, int radius2, int width, double angle_start,
@@ -233,14 +246,17 @@ line(PyObject *self, PyObject *arg, PyObject *kwargs)
     int startx, starty, endx, endy;
     Uint32 color;
     int width = 1; /* Default width. */
+    int endpoint_style =
+        PYGAME_ENDPOINT_STYLE_DEFAULT; /* Default endpoint style. */
     int drawn_area[4] = {INT_MAX, INT_MAX, INT_MIN,
                          INT_MIN}; /* Used to store bounding box values */
     static char *keywords[] = {"surface", "color", "start_pos",
-                               "end_pos", "width", NULL};
+                               "end_pos", "width", "endpoint_style",
+                               NULL};
 
-    if (!PyArg_ParseTupleAndKeywords(arg, kwargs, "O!OOO|i", keywords,
+    if (!PyArg_ParseTupleAndKeywords(arg, kwargs, "O!OOO|ii", keywords,
                                      &pgSurface_Type, &surfobj, &colorobj,
-                                     &start, &end, &width)) {
+                                     &start, &end, &width, &endpoint_style)) {
         return NULL; /* Exception already set. */
     }
 
@@ -276,8 +292,18 @@ line(PyObject *self, PyObject *arg, PyObject *kwargs)
         return RAISE(PyExc_RuntimeError, "error locking surface");
     }
 
-    draw_line_width(surf, surf_clip_rect, color, startx, starty, endx, endy,
-                    width, drawn_area);
+    if (endpoint_style == PYGAME_ENDPOINT_STYLE_RECT) {
+        draw_line_rect_endpoint(surf, surf_clip_rect, color, startx, starty,
+                                endx, endy, width, drawn_area);
+    }
+    else if (endpoint_style == PYGAME_ENDPOINT_STYLE_ROUND) {
+        draw_line_round_endpoint(surf, surf_clip_rect, color, startx, starty,
+                                 endx, endy, width, drawn_area);
+    }
+    else {
+        draw_line_width(surf, surf_clip_rect, color, startx, starty, endx,
+                        endy, width, drawn_area);
+    }
 
     if (!pgSurface_Unlock(surfobj)) {
         return RAISE(PyExc_RuntimeError, "error unlocking surface");
@@ -2152,6 +2178,109 @@ draw_line_width(SDL_Surface *surf, SDL_Rect surf_clip_rect, Uint32 color,
             }
         }
     }
+}
+
+static void
+draw_line_rect_endpoint(SDL_Surface *surf, SDL_Rect surf_clip_rect,
+                        Uint32 color, int x1, int y1, int x2, int y2,
+                        int width, int *drawn_area)
+{
+    double len, width_d;
+    int dx, dy, err, e2, sx, sy, x_moved, extra_width, off_lx, off_ly, off_rx,
+        off_ry;
+    int dx_, dy_, err_, e2_, sx_, sy_, x1_, y1_, x2_, y2_, fx, fy;
+
+    if (width < 1) {
+        return;
+    }
+    if (width == 1) {
+        draw_line(surf, surf_clip_rect, x1, y1, x2, y2, color, drawn_area);
+        return;
+    }
+
+    extra_width = width % 2;
+    width = width_d = width / 2;
+
+    if (x1 == x2 && y1 == y2) {
+        draw_line(surf, surf_clip_rect, x1 - width, y1,
+                  x1 + width + extra_width, y1, color, drawn_area);
+        return;
+    }
+    if (y1 == y2) {
+        for (sy = y1 - width; sy <= y1 + width + extra_width; sy++) {
+            draw_line(surf, surf_clip_rect, x1, sy, x2, sy, color, drawn_area);
+        }
+        return;
+    }
+    if (x1 == x2) {
+        for (sx = x1 - width; sx <= x1 + width + extra_width; sx++) {
+            draw_line(surf, surf_clip_rect, sx, y1, sx, y2, color, drawn_area);
+        }
+        return;
+    }
+
+    dx = x2 - x1;
+    dy = y2 - y1;
+    len = sqrt(dx * dx + dy * dy);
+    off_lx = -dy * width_d / len;
+    off_ly = dx * width_d / len;
+    off_rx = -off_lx;
+    off_ry = -off_ly;
+    fx = (dx > 0 && dy > 0) ? -1 : (dx < 0 && dy < 0) ? 1 : 0;
+    fy = (dx < 0 && dy > 0) ? -1 : (dx > 0 && dy < 0) ? 1 : 0;
+    dx = abs(off_lx - off_rx), sx = off_rx < off_lx ? 1 : -1;
+    dy = abs(off_ly - off_ry), sy = off_ry < off_ly ? 1 : -1;
+    err = (dx > dy ? dx : -dy) / 2;
+    while (off_rx != off_lx || off_ry != off_ly) {
+        x1_ = x1 + off_rx;
+        y1_ = y1 + off_ry;
+        x2_ = x2 + off_rx;
+        y2_ = y2 + off_ry;
+        dx_ = abs(x2_ - x1_), sx_ = x1_ < x2_ ? 1 : -1;
+        dy_ = abs(y2_ - y1_), sy_ = y1_ < y2_ ? 1 : -1;
+        err_ = (dx_ > dy_ ? dx_ : -dy_) / 2;
+        while (x1_ != x2_ || y1_ != y2_) {
+            set_and_check_rect(surf, surf_clip_rect, x1_, y1_, color,
+                               drawn_area);
+            e2_ = err_;
+            x_moved = 0; /* Mark whether the x coordinate has moved. */
+            if (e2_ > -dx_) {
+                err_ -= dy_;
+                x1_ += sx_;
+                x_moved = 1;
+            }
+            if (e2_ < dy_) {
+                err_ += dx_;
+                y1_ += sy_;
+                /* If both the x and y coordinates have moved, a gap will
+                 * appear, so fill it in.*/
+                if (x_moved) {
+                    set_and_check_rect(surf, surf_clip_rect, x1_ + fx,
+                                       y1_ + fy, color, drawn_area);
+                }
+            }
+        }
+        set_and_check_rect(surf, surf_clip_rect, x2_, y2_, color, drawn_area);
+
+        e2 = err;
+        if (e2 > -dx) {
+            err -= dy;
+            off_rx += sx;
+        }
+        if (e2 < dy) {
+            err += dx;
+            off_ry += sy;
+        }
+    }
+    draw_line(surf, surf_clip_rect, x1 + off_lx, y1 + off_ly, x2 + off_lx,
+              y2 + off_ly, color, drawn_area);
+}
+
+static void
+draw_line_round_endpoint(SDL_Surface *surf, SDL_Rect surf_clip_rect,
+                         Uint32 color, int x1, int y1, int x2, int y2,
+                         int width, int *drawn_area)
+{
 }
 
 static void

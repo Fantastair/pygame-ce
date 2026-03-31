@@ -377,6 +377,7 @@ def line(
     start_pos: Point,
     end_pos: Point,
     width: int = 1,
+    endpoint_style: int = 0,
 ) -> Rect:
     """Draw a straight line.
 
