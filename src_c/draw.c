@@ -41,7 +41,8 @@
 #define PYGAME_ENDPOINT_STYLE_DEFAULT 0x0
 #define PYGAME_ENDPOINT_STYLE_RECT 0x1
 #define PYGAME_ENDPOINT_STYLE_ROUND 0x2
-#define PYGAME_ENDPOINT_STYLE_MITER 0x3
+#define PYGAME_ENDPOINT_STYLE_MITER_RECT 0x3
+#define PYGAME_ENDPOINT_STYLE_MITER_ROUND 0x4
 
 /* Declaration of drawing algorithms */
 static void
@@ -69,6 +70,9 @@ static void
 draw_line_round_endpoint(SDL_Surface *surf, SDL_Rect surf_clip_rect,
                          Uint32 color, int x1, int y1, int x2, int y2,
                          int width, int *drawn_area);
+static void
+find_intersection_points(int x1, int y1, int x2, int y2, int x3, int y3,
+                         int width, int *x_pts, int *y_pts, int *reverse);
 static void
 draw_arc(SDL_Surface *surf, SDL_Rect surf_clip_rect, int x_center,
          int y_center, int radius1, int radius2, int width, double angle_start,
@@ -561,6 +565,7 @@ lines(PyObject *self, PyObject *arg, PyObject *kwargs)
     Py_ssize_t loop, length;
     int endpoint_style =
         PYGAME_ENDPOINT_STYLE_DEFAULT; /* Default endpoint style. */
+    int *x_pts = NULL, *y_pts = NULL, reverse;
     int drawn_area[4] = {INT_MAX, INT_MAX, INT_MIN,
                          INT_MIN}; /* Used to store bounding box values */
     static char *keywords[] = {"surface", "color",          "closed", "points",
@@ -644,44 +649,126 @@ lines(PyObject *self, PyObject *arg, PyObject *kwargs)
         return RAISE(PyExc_RuntimeError, "error locking surface");
     }
 
-    for (loop = 1; loop < length; ++loop) {
-        if (endpoint_style == PYGAME_ENDPOINT_STYLE_RECT) {
-            draw_line_rect_endpoint(
-                surf, surf_clip_rect, color, xlist[loop - 1], ylist[loop - 1],
-                xlist[loop], ylist[loop], width, drawn_area);
-        }
-        else if (endpoint_style == PYGAME_ENDPOINT_STYLE_ROUND) {
-            draw_line_rect_endpoint(
-                surf, surf_clip_rect, color, xlist[loop - 1], ylist[loop - 1],
-                xlist[loop], ylist[loop], width, drawn_area);
-            draw_circle_filled(surf, surf_clip_rect, xlist[loop - 1],
-                               ylist[loop - 1], width / 2, color, drawn_area);
-        }
-        else {
-            draw_line_width(surf, surf_clip_rect, color, xlist[loop - 1],
-                            ylist[loop - 1], xlist[loop], ylist[loop], width,
-                            drawn_area);
-        }
-    }
+    switch (endpoint_style) {
+        case PYGAME_ENDPOINT_STYLE_ROUND:
+            for (loop = 1; loop < length; ++loop) {
+                draw_circle_filled(surf, surf_clip_rect, xlist[loop - 1],
+                                   ylist[loop - 1], width / 2, color,
+                                   drawn_area);
+            }
+            draw_circle_filled(surf, surf_clip_rect, xlist[length - 1],
+                               ylist[length - 1], width / 2, color,
+                               drawn_area);
+        case PYGAME_ENDPOINT_STYLE_RECT:
+            for (loop = 1; loop < length; ++loop) {
+                draw_line_rect_endpoint(surf, surf_clip_rect, color,
+                                        xlist[loop - 1], ylist[loop - 1],
+                                        xlist[loop], ylist[loop], width,
+                                        drawn_area);
+            }
+            if (closed && length > 2) {
+                draw_line_rect_endpoint(surf, surf_clip_rect, color,
+                                        xlist[length - 1], ylist[length - 1],
+                                        xlist[0], ylist[0], width, drawn_area);
+            }
+            break;
 
-    if (closed && length > 2) {
-        if (endpoint_style == PYGAME_ENDPOINT_STYLE_RECT ||
-            endpoint_style == PYGAME_ENDPOINT_STYLE_ROUND) {
-            draw_line_rect_endpoint(surf, surf_clip_rect, color,
-                                    xlist[length - 1], ylist[length - 1],
-                                    xlist[0], ylist[0], width, drawn_area);
-        }
-        else {
-            draw_line_width(surf, surf_clip_rect, color, xlist[length - 1],
-                            ylist[length - 1], xlist[0], ylist[0], width,
-                            drawn_area);
-        }
-    }
+        case PYGAME_ENDPOINT_STYLE_MITER_ROUND:
+            if (!closed || length == 2) {
+                draw_circle_filled(surf, surf_clip_rect, xlist[0], ylist[0],
+                                   width / 2, color, drawn_area);
+                draw_circle_filled(surf, surf_clip_rect, xlist[length - 1],
+                                   ylist[length - 1], width / 2, color,
+                                   drawn_area);
+            }
+        case PYGAME_ENDPOINT_STYLE_MITER_RECT:
+            if (length == 2) {
+                draw_line_rect_endpoint(surf, surf_clip_rect, color, xlist[0],
+                                        ylist[0], xlist[1], ylist[1], width,
+                                        drawn_area);
+                break;
+            }
 
-    if (endpoint_style == PYGAME_ENDPOINT_STYLE_ROUND) {
-        /* draw a circle at the end of the last line to round it off. */
-        draw_circle_filled(surf, surf_clip_rect, xlist[length - 1],
-                           ylist[length - 1], width / 2, color, drawn_area);
+            x_pts = PyMem_New(int, 4);
+            y_pts = PyMem_New(int, 4);
+            if (x_pts == NULL || y_pts == NULL) {
+                if (x_pts) {
+                    PyMem_Free(x_pts);
+                }
+                if (y_pts) {
+                    PyMem_Free(y_pts);
+                }
+                PyMem_Free(xlist);
+                PyMem_Free(ylist);
+                return RAISE(PyExc_MemoryError,
+                             "cannot allocate memory to draw lines");
+            }
+            reverse = 0;
+
+            if (closed) {
+                find_intersection_points(
+                    xlist[length - 1], ylist[length - 1], xlist[0], ylist[0],
+                    xlist[1], ylist[1], width, x_pts, y_pts, &reverse);
+                for (loop = 1; loop < length - 1; ++loop) {
+                    find_intersection_points(xlist[loop - 1], ylist[loop - 1],
+                                             xlist[loop], ylist[loop],
+                                             xlist[loop + 1], ylist[loop + 1],
+                                             width, x_pts, y_pts, &reverse);
+                    draw_fillpoly(surf, surf_clip_rect, x_pts, y_pts, 4, color,
+                                  drawn_area);
+                }
+                find_intersection_points(xlist[length - 2], ylist[length - 2],
+                                         xlist[length - 1], ylist[length - 1],
+                                         xlist[0], ylist[0], width, x_pts,
+                                         y_pts, &reverse);
+                draw_fillpoly(surf, surf_clip_rect, x_pts, y_pts, 4, color,
+                              drawn_area);
+                find_intersection_points(
+                    xlist[length - 1], ylist[length - 1], xlist[0], ylist[0],
+                    xlist[1], ylist[1], width, x_pts, y_pts, &reverse);
+                draw_fillpoly(surf, surf_clip_rect, x_pts, y_pts, 4, color,
+                              drawn_area);
+            }
+            else {
+                find_intersection_points(xlist[0] * 2 - xlist[1],
+                                         ylist[0] * 2 - ylist[1], xlist[0],
+                                         ylist[0], xlist[1], ylist[1], width,
+                                         x_pts, y_pts, &reverse);
+                for (loop = 1; loop < length - 1; ++loop) {
+                    find_intersection_points(xlist[loop - 1], ylist[loop - 1],
+                                             xlist[loop], ylist[loop],
+                                             xlist[loop + 1], ylist[loop + 1],
+                                             width, x_pts, y_pts, &reverse);
+                    draw_fillpoly(surf, surf_clip_rect, x_pts, y_pts, 4, color,
+                                  drawn_area);
+                }
+                find_intersection_points(
+                    xlist[length - 2], ylist[length - 2], xlist[length - 1],
+                    ylist[length - 1],
+                    xlist[length - 1] * 2 - xlist[length - 2],
+                    ylist[length - 1] * 2 - ylist[length - 2], width, x_pts,
+                    y_pts, &reverse);
+                draw_fillpoly(surf, surf_clip_rect, x_pts, y_pts, 4, color,
+                              drawn_area);
+            }
+
+            PyMem_Free(x_pts);
+            PyMem_Free(y_pts);
+
+            break;
+
+        default:
+            for (loop = 1; loop < length; ++loop) {
+                draw_line_width(surf, surf_clip_rect, color, xlist[loop - 1],
+                                ylist[loop - 1], xlist[loop], ylist[loop],
+                                width, drawn_area);
+            }
+            if (closed && length > 2) {
+                draw_line_width(surf, surf_clip_rect, color, xlist[length - 1],
+                                ylist[length - 1], xlist[0], ylist[0], width,
+                                drawn_area);
+            }
+            break;
     }
 
     PyMem_Free(xlist);
@@ -2398,6 +2485,49 @@ draw_line_round_endpoint(SDL_Surface *surf, SDL_Rect surf_clip_rect,
             break;
         default:
             break;
+    }
+}
+
+static void
+find_intersection_points(int x1, int y1, int x2, int y2, int x3, int y3,
+                         int width, int *x_pts, int *y_pts, int *reverse)
+{
+    int dx, dy, off_x1, off_y1, off_x2, off_y2, off_x, off_y, len2;
+    double len;
+
+    width = width / 2;
+
+    dx = x2 - x1;
+    dy = y2 - y1;
+    len = sqrt(dx * dx + dy * dy);
+    off_x1 = -dy * width / len;
+    off_y1 = dx * width / len;
+
+    dx = x3 - x2;
+    dy = y3 - y2;
+    len = sqrt(dx * dx + dy * dy);
+    off_x2 = -dy * width / len;
+    off_y2 = dx * width / len;
+
+    off_x = (off_x1 + off_x2) / 2;
+    off_y = (off_y1 + off_y2) / 2;
+    len2 = off_x * off_x + off_y * off_y;
+    off_x = off_x * width * width / len2;
+    off_y = off_y * width * width / len2;
+
+    if (*reverse) {
+        *x_pts = (int)(x2 + off_x);
+        *y_pts = (int)(y2 + off_y);
+        *(x_pts + 1) = (int)(x2 - off_x);
+        *(y_pts + 1) = (int)(y2 - off_y);
+        *reverse = 0;
+    }
+    else {
+        *(x_pts + 3) = (int)(x2 + off_x);
+        *(y_pts + 3) = (int)(y2 + off_y);
+        *(x_pts + 2) = (int)(x2 - off_x);
+        *(y_pts + 2) = (int)(y2 - off_y);
+        *reverse = 1;
     }
 }
 
