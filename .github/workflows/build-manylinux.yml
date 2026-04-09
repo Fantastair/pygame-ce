@@ -33,7 +33,9 @@ jobs:
       CIBW_ARCHS: ${{ matrix.arch }}
 
     steps:
-    - uses: actions/checkout@v6.0.2
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      with:
+        persist-credentials: false
 
     - name: Set lowercase repository name
       id: repo
@@ -42,7 +44,7 @@ jobs:
         echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
 
     - name: Log in to the Container registry
-      uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+      uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
@@ -55,14 +57,14 @@ jobs:
 
     - name: Extract metadata (tags, labels) for Docker
       id: meta
-      uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051
+      uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf
       with:
         images: ghcr.io/${{ steps.repo.outputs.repo_lower }}_${{ matrix.arch }}
         tags: type=raw,value=${{ hashFiles('buildconfig/manylinux-build/**') }}
 
     - name: Build and push Docker image
       if: steps.inspect.outcome == 'failure'
-      uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
+      uses: docker/build-push-action@d08e5c354a6adb9ed34480a06d141179aa583294
       with:
         context: ${{ github.workspace }}/buildconfig/manylinux-build/docker_base
         file: ${{ github.workspace }}/buildconfig/manylinux-build/docker_base/Dockerfile-${{ matrix.arch }}
@@ -80,11 +82,11 @@ jobs:
         CIBW_MANYLINUX_AARCH64_IMAGE: ghcr.io/${{ steps.repo.outputs.repo_lower }}_aarch64:${{ steps.meta.outputs.version }}
         CIBW_MANYLINUX_PYPY_AARCH64_IMAGE: ghcr.io/${{ steps.repo.outputs.repo_lower }}_aarch64:${{ steps.meta.outputs.version }}
 
-      uses: pypa/cibuildwheel@v3.2.1
+      uses: pypa/cibuildwheel@ee02a1537ce3071a004a6b08c41e72f0fdc42d9a # v3.4.0
 
     # We upload the generated files under github actions assets
     - name: Upload dist
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
       with:
         name: pygame-wheels-manylinux-${{ matrix.arch }}
         path: ./wheelhouse/*.whl
